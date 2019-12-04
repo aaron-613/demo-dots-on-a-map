@@ -12,10 +12,21 @@ apply plugin: 'application'
 apply plugin: "eclipse"
 apply plugin: "idea"
 
+eclipse {
+    classpath {
+        downloadJavadoc = true
+    }
+}
+
+idea {
+    module {
+        downloadJavadoc = true
+    }
+}
+
 mainClassName = 'com.solace.aaron.demo.geo.gps.GpsPublisher'
 
 dependencies {
-
 
     compile group: 'com.solacesystems', name: 'sol-jcsmp', version: '10.4.1'
 
