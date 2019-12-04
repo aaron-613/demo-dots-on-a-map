@@ -1,3 +1,11 @@
 .gradle
+.settings
+.classpath
+geo-gps-pub/.classpath
+geo-gps-pub/.project
+geo-gps-pub/.settings/
+geo-gps-pub/bin/
+geo-gps-pub/build/
+
 /build/
 /bin/
