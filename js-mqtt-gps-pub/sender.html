@@ -1,0 +1,185 @@
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+<SCRIPT TYPE="text/javascript" src="./lib-js/solclient-debug.js"></SCRIPT>
+<SCRIPT TYPE="text/javascript" src="solace_geo.js"></SCRIPT>
+<title>Location & Video over Solace demonstration</title>
+<style>
+  html,body {
+    //width: 350px;
+  }
+  h1 {
+    font: 36pt Arial;
+    margin: 10 0 0 0;
+    padding: 0;
+    color: #333;
+  }
+  h2 {
+    font: 24pt Arial;
+    margin: 10 0 0 0;
+    padding: 0;
+    color: #005dab;
+  }
+  div, p, form, input {
+    font: 20pt Arial;
+  }
+</style>
+</head>
+<body>
+<p><img src="solace-logo-200px.png"></p>
+<h1>London Users' Group Demo</h1>
+<h2>July 2015</h2>
+<p>
+A demonstration of sending real-time geographic location and video information over a Solace message bus.</p>
+<div id="user-section">
+<form id="form" action="javascript:start()">Please enter: 
+<input id="user-entry" type="text" name="user-name" placeholder="Name or Alias">
+<input type="submit" value="Start!">
+</form>
+</div>
+<hr>
+<p id="position"><b>Location:</b> <br/><b>Message Count:</b> </p>
+<hr>
+<p><video autoplay id="sourcevid", positition="fixed", top="0", left="0", opacity="0"></video></p>
+<p id="log">Status: </p>
+<p><span style="font-size: 10pt;">&copy; Aaron & Tom @ Solace</span></p>
+
+
+<script>
+var position_text = document.getElementById("position");
+var count = 0;
+var video = document.getElementsByTagName('video')[0];
+navigator.getUserMedia = navigator.getUserMedia ||
+                        navigator.webkitGetUserMedia ||
+                        navigator.mozGetUserMedia ||
+                        navigator.msGetUserMedia;
+
+var back = document.createElement('canvas');
+var backcontext = back.getContext('2d');
+var user = "test";
+var topic;
+var clientName;
+var lat, lon;
+var started = false;
+var videoOn = true;
+var vidQuality = 0.9;
+
+var WebcamConstraints = {
+  video: {
+    mandatory: {
+      maxWidth: 320,
+      maxHeight: 180,
+    }
+  }
+};
+
+function draw(topic, video, bc, w, h) {
+  if (!started) {
+    return;
+  }
+  bc.drawImage(video, 0, 0, w, h);
+  if (solace_ready) {
+    count++;
+  }
+  var newLoc = "<b>Location:</b> " + Math.abs(lat).toFixed(6);
+  if (lat < 0) newLoc += "S";
+  else newLoc += "N";
+  newLoc += ", "+Math.abs(lon).toFixed(6);
+  if (lon < 0) newLoc += "W";
+  else newLoc += "E";
+  position_text.innerHTML = newLoc + "<br/><b>Message Count:</b> " + count;	
+  if (videoOn) {
+    var imgString = back.toDataURL("image/jpeg",vidQuality);
+    //if (imgString.length < 5000) vidQuality +=
+    send(topic,imgString,user);
+  }
+  else  send(topic,null,user);
+}
+
+var log = function(msg) {
+  document.getElementById('log').innerHTML = "Status: "+msg;
+};
+
+function vidSuccessCallback( stream ) {
+  if (!solace_ready) {
+    return;
+  }
+  //video.mozSrcObject = stream;
+  if (window.URL || window.webkitURL) {
+    video.src = window.URL.createObjectURL(stream);
+  } else {
+    video.mozSrcObject = stream;
+  }
+};
+
+function vidErrorCallback( error ) {
+  // just fail silently
+  //log("A video error occurred: [CODE " + error.code + "]");
+  videoOn = false;
+        alert("Native web camera streaming is not supported in this browser!");
+};
+
+function getLocation() {
+    if (navigator.geolocation) {
+        navigator.geolocation.watchPosition(showPosition,geoShowError);
+    } else { 
+        position_text.innerHTML = "Geolocation is not supported by this browser.";
+    }
+}
+
+function showPosition(position) {
+  started = true;
+  clientName = mySession.getSessionProperties().clientName;
+  lat = position.coords.latitude;
+  var latStr;
+  if (lat < 10) latStr = "0" + Math.abs(lat).toFixed(6);
+  else latStr = Math.abs(lat).toFixed(6);
+  if (lat < 0) latStr = "-"+latStr;
+  lon = position.coords.longitude;
+  var lonStr;
+  if (lon < 10) lonStr = "00" + Math.abs(lon).toFixed(6);
+  else if (lon < 100) lonStr = "0" + Math.abs(lon).toFixed(6);
+  else lonStr = Math.abs(lon).toFixed(6);
+  if (lon < 0) lonStr = "-" + lonStr;
+  topic = "GEO/USER/"+latStr+"/"+lonStr+"/"+user+"/"+clientName;
+  //topic = "GEO/USER/"+lat+"/"+lon+"/"+user+"/"+clientName;
+}
+
+function geoShowError(error) {
+    switch(error.code) {
+        case error.PERMISSION_DENIED:
+            position_text.innerHTML = "User denied the request for Geolocation."
+            break;
+        case error.POSITION_UNAVAILABLE:
+            position_text.innerHTML = "Location information is unavailable."
+            break;
+        case error.TIMEOUT:
+            position_text.innerHTML = "The request to get user location timed out."
+            break;
+        case error.UNKNOWN_ERROR:
+            position_text.innerHTML = "An unknown geo location error occurred."
+            break;
+    }
+}
+
+function start() {
+  connect();
+console.log("here3");
+  user = document.getElementById('user-entry').value;
+  parent = document.getElementById('user-section');
+  parent.removeChild(document.getElementById("form"));
+  
+  if(navigator.getUserMedia) {
+        //navigator.getUserMedia(WebcamConstraints, vidSuccessCallback, vidErrorCallback);
+        navigator.getUserMedia({video: true}, vidSuccessCallback, vidErrorCallback);
+  } else {
+        alert("Native web camera streaming is not supported in this browser!");
+        //log("Native web camera streaming is not supported in this browser!");
+  };
+  getLocation();
+  interval = setInterval(function(){ draw(topic, video, backcontext, back.width, back.height); },250);
+}
+
+</script>
+</body>
+</html>
