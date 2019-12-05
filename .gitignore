@@ -1,6 +1,7 @@
 .gradle
 .settings
 .classpath
+.project
 geo-gps-pub/.classpath
 geo-gps-pub/.project
 geo-gps-pub/.settings/
