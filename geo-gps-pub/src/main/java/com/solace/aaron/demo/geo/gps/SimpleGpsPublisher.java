@@ -176,15 +176,16 @@ public class SimpleGpsPublisher implements Runnable {
             // block main thread, wait...
             try {
                 while (true) {
-                    for (int i=0;i<coords.size();i++) {
+//                    for (int i=0;i<coords.size();i++) {
+                    for (int i=coords.size()-1;i>=0;i--) {
                         for (int j=0;j<coords.get(i).size();j++) {
                             BytesMessage msg = JCSMPFactory.onlyInstance().createMessage(BytesMessage.class);
-                            String payload = String.format("{busNum:%d,routeNum:%d,pos:%s}",i,i,coords.get(i).get(j));
-                            System.out.println(payload);
-                            String topic = "geo2/pos/"+i;
+                            String payload = String.format("{\"busNum\":%d, \"routeNum\":%d, \"lat\":%f, \"lon\":%f}",i,i,coords.get(i).get(j).y,coords.get(i).get(j).x);
+                            //System.out.println(payload);
+                            String topic = "gps/pos/"+i;
                             msg.setData(payload.getBytes(Charset.forName("UTF-8")));
                             producer.send(msg,JCSMPFactory.onlyInstance().createTopic(topic));
-                            Thread.sleep(100);
+                            Thread.sleep(50);
                         }
                     }
                     

@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>Solace Real-time Connected Buses Demo</title>
+  <meta name="viewport" content="initial-scale=1.0, user-scalable=no">
+  <meta charset="utf-8">
+  <style>
+    html,
+    body {
+      height: 100%;
+      margin: 0px;
+      padding: 0px
+    }
+    #map-canvas {
+      height: 100%;
+      margin: 0px;
+      padding: 0px
+    }
+  </style>
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCkw9RMW4u14iwJD2QSaoK9q8DamnhbyXg&v=3.exp&libraries=visualization"></script>
+  <!--script type="text/javascript" src="solclient-debug.js"></script>
+  <script type="text/javascript" src="marker_with_label.js"></script-->
+  <!--script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js" type="text/javascript"></script-->
+  <script src="paho-mqtt-min.js" type="text/javascript"></script>
+
+  <style>
+    #wrapper {
+      position: relative;
+    }
+    #over_map_tl {
+      position: absolute;
+      top: 55px;
+      left: 9px;
+      z-index: 99;
+      background-color: rgba(255, 255, 255, 0.95);
+      padding: 10px;
+      border: 1px solid #999;
+      font-family: 'sans-serif';
+      line-height: 30px;
+      padding-left: 10px;
+    }
+    #over_map_tr {
+      position: absolute;
+      top: 9px;
+      right: 55px;
+      z-index: 99;
+      background-color: rgba(255, 255, 255, 0.95);
+      padding: 10px;
+      border: 1px solid #999;
+      font-family: 'sans-serif';
+      line-height: 30px;
+      padding-left: 10px;
+    }
+
+
+    h1 {
+      font: 18pt Roboto, sans-serif;
+      color: #00000;
+      padding: 2px;
+      margin-top: 0px;
+      margin-bottom: 0px;
+    }
+    h3 {
+      font: 12pt Roboto, sans-serif;
+      color: #00000;
+      padding: 2px;
+      margin-top: 0px;
+      margin-bottom: 0px;
+    }
+    p,td {
+      font: 9pt Roboto, sans-serif;
+      color: #000000;
+      padding: 0px;
+      margin-top: 1px;
+      margin-bottom: 1px;
+    }
+
+    .orange_o {
+      color: #f4961c;
+      font: 17pt century gothic;
+    }
+
+    .labels {
+      color: blue;
+      background-color: white;
+      font-family: "Verdana", "Arial", sans-serif;
+      font-size: 10px; //font-weight: bold;
+      text-align: center;
+      width: 100px;
+      border: 1px solid blue; //     white-space: nowrap;
+    }
+
+    .labels3 {
+      //     color: blue;
+      background-color: rgba(255, 255, 255, 0.7);
+      font-family: "Arial", sans-serif;
+      font-size: 14px;
+      font-weight: bold;
+      text-align: center;
+      width: 120px;
+      border: 1px solid black; //     white-space: nowrap;
+    }
+
+    .labels2 {
+      color: rgba(0, 0, 100, 1);
+      background-color: rgba(255, 255, 255, 0.7);
+      font-family: "Arial", sans-serif;
+      font-size: 10px;
+      font-weight: bold;
+      text-align: left;
+      width: 80px;
+      border: 1px solid rgba(0, 0, 100, 1);
+      padding-left: 1px; //     white-space: nowrap;
+    }
+
+
+
+    .sliders {
+      font: 16pt Haettenschweiler, Impact, fantasy;
+      color: #003b74; //005dab;
+    }
+    .newSliders {
+      font: 9pt Roboto, sans-serif;
+      color: #000000;
+    }
+  </style>
+  <script>
+    // This example adds a user-editable rectangle to the map.
+
+    var map;
+    var oldRequestObj = {};
+    var lastResults = "";
+    var zoomLevel;
+    var globalZindex = 100;
+
+    var vehicles = {};  // loc,
+
+    var icon_bus_small_ok = { url: "bus_small_ok.png", anchor: { x: 4, y: 4 }};
+    var icon_bus_small_stop = { url: "bus_small_stop.png", anchor: { x: 4, y: 4 }};
+    var icon_bus_small_msg = { url: "bus_small_msg.png", anchor: { x: 8, y: 8 }};
+    var icon_bus_small_fault = { url: "bus_small_fault.png", anchor: { x: 8, y: 8 }};
+    var icon_bus_med_ok = { url: "bus_med_ok.png", anchor: { x: 8, y: 8 }};
+    var icon_bus_med_stop = { url: "bus_med_stop.png", anchor: { x: 8, y: 8 }};
+    var icon_bus_med_msg = { url: "bus_med_msg.png", anchor: { x: 16, y: 16 }};
+    var icon_bus_med_fault = { url: "bus_med_fault.png", anchor: { x: 16, y: 16 }};
+
+
+    function initialize() {
+      var mapOptions = {
+        center: new google.maps.LatLng(51.5,-0.1),  // London
+        zoom: 13,
+        draggable: true,
+        mapTypeId: 'satellite',
+        mapTypeControlOptions: {
+          mapTypeIds: ['coordinate', 'roadmap'],
+          style: google.maps.MapTypeControlStyle.DROPDOWN_MENU
+        },
+        scaleControl: true,
+        drawable: true,
+        clickable: false,
+        mapTypeControlOptions: {
+          //mapTypeIds: [google.maps.MapTypeId.ROADMAP, 'map_style']
+        }
+
+      };
+      map = new google.maps.Map(document.getElementById('map-canvas'), mapOptions);
+      map.setMapTypeId('terrain');
+    }
+    /////////// END OF MAP INITIALIZE method ////////////////////////////////////////
+    google.maps.event.addDomListener(window, 'load', initialize);  // when page is loaded, call initialize()
+
+
+    // MQTT code //////////////////////////////////////////////////////
+  
+    var deets = {
+      host: 'mr1bjj91s4bc2t.messaging.solace.cloud',
+      port: 8443,
+      ssl: true,
+      username: 'solace-cloud-client',
+      password: '76be0527a6kr46hvcrbr5l5dac'
+    }
+  
+    // this is for MQTT, it should return a connected or connecting valid Paho client
+    function getClientConnection(uniqueID,onMessageArrived,onConnectionLost,onConnect) {
+      var client = new Paho.MQTT.Client(deets['host'], Number(deets['port']), "meet_" + uniqueID); // AWS SGP Nano
+      // set the callback handlers
+      client.onConnectionLost = onConnectionLost;
+      client.onMessageArrived = onMessageArrived;
+      // define connection options
+      var connectOptions = {};
+      if (deets['ssl'] == true) {
+        connectOptions["useSSL"] = true;
+      }
+      connectOptions["reconnect"] = true;
+      connectOptions["userName"] = deets['username'];
+      connectOptions["password"] = deets['password'];  // AWS SGP Nano
+      connectOptions["onSuccess"] = onConnect;
+      // try to connect!
+      client.connect(connectOptions);
+      return client;
+    }
+    
+    function writeConsole(msg) {
+      console.log(msg);
+    }
+
+    var isConnected = false;
+    writeConsole("Connecting...");
+    var uniqueID = "abcdefg";
+    var mqttClient = getClientConnection(uniqueID,onMessageArrived,onConnectionLost,onConnect);
+
+    // called when the client connects
+    function onConnect() {
+      writeConsole("Connected!");
+      isConnected = true;
+      mqttClient.subscribe("gps/#");
+    }
+
+    // called when the client loses its connection
+    function onConnectionLost(responseObject) {
+      isConnected = false;
+      if (responseObject.errorCode !== 0) {
+        writeConsole("Connection Lost! " + responseObject.errorMessage);
+      }
+    }
+
+    // called when a message arrives
+    function onMessageArrived(msg) {
+      if (msg.destinationName.indexOf("gps/") == 0) {
+          parseGeoMessage(msg);
+      }
+    }
+
+    // OLD ///////////////////////////////////////////////
+
+    this.getGeoSearchParams = function() {
+      var params = {};
+      params["accuracy"] = accuracy;
+      params["numSubs"] = numSubs;
+      var show = document.querySelector('#show').value;  // buses or taxis or both
+      var vehNum = document.querySelector('#vehNum').value;
+      var routeNum = document.querySelector('#routeNum').value
+      var prefix = "geo/";
+      var suffix = "";
+      if (show == "taxi") prefix += "taxi/";
+      else if (show == "buses") prefix += "bus/";
+      else prefix += "*/";
+      if (vehNum == "") prefix += "*/";
+      else prefix += vehNum + "/";
+      params["topicPrefix"] = prefix;
+      if (routeNum == "") suffix += ">";
+      else {
+        if (routeNum < 100) suffix += "0";
+        if (routeNum < 10) suffix += "0";
+        suffix += routeNum + "/>";
+      }
+      params["topicSuffix"] = suffix;
+      console.log(prefix+"  -  "+suffix);
+      return params;
+      // var paramStr = "accuracy=" + accuracy + ";";
+      // paramStr += "numSubs=" + numSubs + ";";
+      // // don't worry about this anymore... return both
+      // paramStr += "display=" + document.querySelector('#display').value + ";";
+      // return paramStr;
+    }
+
+
+    ////////////////////// Callback functions //////////////////////////////////////////////////////////////////////////////
+
+    getTextPayload = function(message) {
+      if (message.getType() == solace.MessageType.TEXT) {
+        return message.getSdtContainer().getValue();
+      } else {
+        return message.getBinaryAttachment(); // binary attachment, all text
+      }
+    }
+
+    parseCommsMessage = function(message) {
+      var levels = message.getDestination().getName().split("/"); // topic levels   geo/bus/1001/001.308820/0103.876270/007/OK  --> geo/bus/VehNum/lat/lon/Route/Status
+      // comms/bus/1234
+      // comms/route/012
+      // comms/broadcast
+      // comms/dispatch
+      if (levels[1] == "bus") {
+        var vehicle = vehicles[levels[2]];
+        if (vehicle == null) {
+          alert("No vehicle "+levels[2]+" present.");
+          return;
+        }
+        var messageWindow = new google.maps.InfoWindow();
+        messageWindow.setContent(message.getBinaryAttachment());
+        messageWindow.open(map,vehicle["marker"]);
+        google.maps.event.addListener(messageWindow, 'closeclick', function() {
+          vehicle["marker"].setAnimation(google.maps.Animation.NONE);
+        });
+        vehicle["marker"].setIcon(icon_bus_med_msg);
+        vehicle["marker"].setAnimation(google.maps.Animation.BOUNCE);
+        vehicle["marker"].setZIndex(globalZindex+100);  // pop to top
+      } else if (levels[1] == "route") {
+        for (var i=1000;i<10000;i++) { //var key in vehicles) {
+          if (vehicles[i] != null && vehicles[i]["route"] == levels[2]) {
+            vehicles[i]["marker"].setIcon(icon_bus_med_msg);
+            vehicles[i]["marker"].setZIndex(globalZindex++);  // pop to top
+            vehicles[i]["marker"].setAnimation(google.maps.Animation.BOUNCE);
+          }
+        }
+      } else if (levels[1] == "broadcast") {
+        for (var i=1000;i<10000;i++) { //var key in vehicles) {
+          if (vehicles[i] != null) {
+            vehicles[i]["marker"].setIcon(icon_bus_med_msg);
+            vehicles[i]["marker"].setZIndex(globalZindex++);  // pop to top
+            vehicles[i]["marker"].setAnimation(google.maps.Animation.BOUNCE);
+          }
+        }
+      } else if (levels[1] == "dispatch") {
+        console.log(message.payload);
+        alert(getTextPayload(message));
+      }
+    }
+
+    buildBusInfoWindowContent = function(vehNum) {
+      var contentString = '<div id="content">';
+      if (vehNum >= 1000 && vehNum < 10000) {   // bus
+        var bus = vehicles[vehNum];
+        contentString = '<h2 id="firstHeading" class="firstHeading">Route '+bus["route"]+'</h2>' +
+          '<div id="bodyContent"><p>' +
+          '<b>Bus Number:</b> ' + vehNum + '<br/>' +
+          '<b>Current Position:</b> ' + bus["marker"].getPosition().lat().toFixed(4) + 'N,' + bus["marker"].getPosition().lng().toFixed(4) + 'E<br/>' +
+          '<b>Status:</b> ' + bus["payload"].status + '<br/>' +
+          '<b>Speed:</b> ' + bus["payload"].speed +
+          // '<b>Destination:</b> ' + endAddr +
+          '</p>';
+        // if (img != null) {
+        //   contentString += '<p align="center"><img src="' + img + '"></p>';
+        // }
+        contentString += '</div></div>';
+        return contentString;
+      }
+
+    }
+
+    parseGeoMessage = function(msg) {
+      // var payload = 0;
+      // if (message.getXmlContent() != null) payload += message.getXmlContent().length;
+      // if (message.getBinaryAttachment() != null) payload += message.getBinaryAttachment().length;
+      //console.log("Received message on: "+message.getDestination().getName()+"  ("+payload+" bytes)");
+      var levels = msg.destinationName.split("/"); // topic levels   geo/bus/1001/001.308820/0103.876270/007/OK  --> geo/bus/VehNum/lat/lon/Route/Status
+      var vehNum = levels[2] * 1;
+      var payload = JSON.parse(msg.payloadString);
+      var vehicle;  // for later
+      // now, have we seen this guy before?
+      if (!(vehNum in vehicles)) {
+        vehicles[vehNum] = {}; // create new hash
+        vehicle = vehicles[vehNum];
+        vehicle["marker"] = new google.maps.Marker({
+          zIndex: globalZindex++,
+        });
+        // if they click the icon, pop up a window
+/*        google.maps.event.addListener(vehicle["marker"], 'click', function() {
+          vehicle["marker"].setZIndex(globalZindex++);  // pop to top
+          vehicle["infoWindow"] = new google.maps.InfoWindow();
+          // populate with something
+          vehicle["infoWindow"].setContent(buildBusInfoWindowContent(vehNum));
+          vehicle["infoWindow"].open(map, vehicle["marker"]);
+          google.maps.event.addListener(vehicle["infoWindow"], 'closeclick', function() {
+            vehicle["infoWindow"] = null;
+          });
+        });*/
+      }
+      // now we've inserted the new guy for sure
+      vehicle = vehicles[vehNum];
+      //lat = lat + vehicle["latOff"];
+      //lon += vehicle["lonOff"];
+      var lat = payload.lat;
+      var lon = payload.lon;
+      vehicle["pos"] = new google.maps.LatLng(lat, lon);
+
+      vehicle["marker"].setPosition(vehicle["pos"]);
+      vehicle["marker"].setAnimation(google.maps.Animation.NONE);
+      vehicle.marker.setIcon(icon_bus_med_ok);
+
+      vehicle["payload"] = payload;
+
+      vehicle["marker"].setOpacity(1);
+      if (vehicle["marker"].getMap() == null) {  // this is needed to prevent flickering, rather than just setting the map explicitly
+        vehicle["marker"].setMap(map);
+      }
+/*      vehicle["ts"] = Date.now();
+      if (vehicle["infoWindow"] != null) {
+        // update it
+        vehicle["infoWindow"].setContent(buildBusInfoWindowContent(levels[2]));
+      }
+*/    }  // end parseGeoMessage
+
+
+
+//    google.maps.event.addDomListener(window, 'load', onLogin);
+  </script>
+</head>
+
+<body>
+
+  <div id="map-canvas"></div>
+  <div id="over_map_tl">
+    <h3>Filtering:</h3>
+    <table>
+      <tr>
+        <td>
+          Filter by Vehicle number: <input id="vehNum" onchange="updateSearch()" size="4"/><br/>
+          Filter by Route number: <input id="routeNum" onchange="updateSearch()" size="4"/>
+        </td>
+      </tr>
+    </table>
+
+  </div>
+  <div id="over_map_tr">
+    <h1>Real-time Connected Buses Demo</h1><p/><h3>Bidirectional IoT Communication using MQTT<br>Advanced Filtering and Routing Capabilities</h3>
+  </div>
+
+</body>
+
+</html>
