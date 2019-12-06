@@ -4,33 +4,53 @@ import java.awt.geom.Point2D;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import com.solacesystems.jcsmp.BytesMessage;
+import com.solacesystems.jcsmp.BytesXMLMessage;
 import com.solacesystems.jcsmp.InvalidPropertiesException;
 import com.solacesystems.jcsmp.JCSMPChannelProperties;
+import com.solacesystems.jcsmp.JCSMPException;
 import com.solacesystems.jcsmp.JCSMPFactory;
+import com.solacesystems.jcsmp.JCSMPProducerEventHandler;
 import com.solacesystems.jcsmp.JCSMPProperties;
+import com.solacesystems.jcsmp.JCSMPReconnectEventHandler;
 import com.solacesystems.jcsmp.JCSMPSession;
+import com.solacesystems.jcsmp.JCSMPStreamingPublishEventHandler;
+import com.solacesystems.jcsmp.ProducerEventArgs;
 import com.solacesystems.jcsmp.SessionEventArgs;
 import com.solacesystems.jcsmp.SessionEventHandler;
+import com.solacesystems.jcsmp.XMLMessageConsumer;
+import com.solacesystems.jcsmp.XMLMessageListener;
+import com.solacesystems.jcsmp.XMLMessageProducer;
 
 public class SimpleGpsPublisher implements Runnable {
     
-    final String host;
-    final String vpn;
-    final String user;
-    final String pw;
+    private final String host;
+    private final String vpn;
+    private final String user;
+    private final String pw;
     
+    private JCSMPSession session = null;
+    @SuppressWarnings("unused")
+    private XMLMessageProducer producer = null;
+    private XMLMessageConsumer consumer = null;
+    private volatile boolean connected = false;
+
     final List<List<Point2D.Double>> coords = new ArrayList<>();
+    final ScheduledExecutorService pool = Executors.newScheduledThreadPool(5);
     
-    JCSMPSession session = null;
-    
-    private final Logger LOGGER = LogManager.getLogger(SimpleGpsPublisher.class);
+
+    private static final Logger logger = LogManager.getLogger(SimpleGpsPublisher.class);
     
     public SimpleGpsPublisher(String host, String vpn, String user, String pw) throws IOException {
         // should probably check they're not empty or some weird chars..?
@@ -38,20 +58,20 @@ public class SimpleGpsPublisher implements Runnable {
         this.vpn = vpn;
         this.user = user;
         this.pw = pw;
-        
+        // try to load the list of coordinates!
         loadFile();
     } 
     
     private static final String FILENAME = "coords2.txt";
     
     private void loadFile() throws IOException {
-        LOGGER.info("Attempting to load file: "+FILENAME);
+        logger.info("Attempting to load file: "+FILENAME);
         List<String> lines = new ArrayList<>();
         ClassLoader classLoader = this.getClass().getClassLoader();
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(classLoader.getResourceAsStream(FILENAME)))) {
             lines = reader.lines().collect(Collectors.toList());
         }
-        LOGGER.info("Success!");
+        logger.info("Success!");
         for (String line : lines) {
             List<Point2D.Double> route = new ArrayList<>();
             String[] textCoords = line.split(";");
@@ -62,8 +82,12 @@ public class SimpleGpsPublisher implements Runnable {
                 route.add(new Point2D.Double(lon,lat));  // x=lon, y=lat
             }
             coords.add(route);
+            new SimulatedBus(1,1,route);
         }
-        LOGGER.info("Loaded "+coords.size()+" routes");
+        logger.info("Loaded "+coords.size()+" routes");
+        
+        
+        
     }
     
     private String makeTopic(int routeIndex) {
@@ -89,20 +113,114 @@ public class SimpleGpsPublisher implements Runnable {
                 
                 @Override
                 public void handleEvent(SessionEventArgs event) {
-                    
-                    // TODO Auto-generated method stub
-                    
+                    // don't do much, just log
+                    logger.info("Session Event Handler caught something: "+event.toString());
                 }
             });
+            session.setProperty(JCSMPProperties.CLIENT_NAME,"GpsPub_"+session.getProperty(JCSMPProperties.CLIENT_NAME));
+            session.connect();
+            logger.info("Connected!");
+            connected = true;
+            // create the message producer... just basic anonymous classes are fine
+            producer = session.getMessageProducer(new JCSMPStreamingPublishEventHandler() {
+                
+                @Override
+                public void responseReceived(String messageID) {
+                    // publishing Direct messages, so this shouldn't be called?
+                    logger.info("Streaming Publish Event Handler received response for messaageID "+messageID);
+                }
+                
+                @Override
+                public void handleError(String messageID, JCSMPException cause, long timestamp) {
+                    // publishing Direct messages, so this shouldn't be called?
+                    logger.warn("Streaming Publish Event Handler received error for messaageID "+messageID);
+                    logger.warn(cause);
+                }
+            },new JCSMPProducerEventHandler() {
+                @Override
+                public void handleEvent(ProducerEventArgs event) {
+                    // don't do much, just log
+                    logger.info("Producer Event Handler received: "+event);
+                }
+            });
+            // define an empty (for now) Message Consumer, to catch the reconnection events
+            consumer = session.getMessageConsumer(new JCSMPReconnectEventHandler() {
+                @Override
+                public boolean preReconnect() throws JCSMPException {
+                    if (connected) {
+                        connected = false;
+                        logger.info("Disconnected!");
+                    }
+                    logger.info("Trying to reconnect session...");
+                    return true;
+                }
+                
+                @Override
+                public void postReconnect() throws JCSMPException {
+                    logger.info("Reconnected!");
+                    connected = true;
+                }
+            },new XMLMessageListener() {
+                @Override
+                public void onReceive(BytesXMLMessage message) {
+                    // not subscribing yet, so no need to implement
+                }
+                
+                @Override
+                public void onException(JCSMPException e) {
+                    logger.warn("Message Listener caught an exception",e);
+                }
+            });
+            consumer.start();
+
+            // block main thread, wait...
+            try {
+                while (true) {
+                    for (int i=0;i<coords.size();i++) {
+                        for (int j=0;j<coords.get(i).size();j++) {
+                            BytesMessage msg = JCSMPFactory.onlyInstance().createMessage(BytesMessage.class);
+                            String payload = String.format("{busNum:%d,routeNum:%d,pos:%s}",i,i,coords.get(i).get(j));
+                            System.out.println(payload);
+                            String topic = "geo2/pos/"+i;
+                            msg.setData(payload.getBytes(Charset.forName("UTF-8")));
+                            producer.send(msg,JCSMPFactory.onlyInstance().createTopic(topic));
+                            Thread.sleep(100);
+                        }
+                    }
+                    
+                    
+                    
+                    
+                    
+                    
+                    
+                    Thread.sleep(10000);
+                }
+            } catch (InterruptedException e) {
+                logger.info("Main thread got interrupted, probably quitting!",e);
+            }
         } catch (InvalidPropertiesException e) {
-            e.printStackTrace();
-            
-            
-            
+            logger.error("Something somehow went wrong trying to create the Session Properties",e);
+        } catch (JCSMPException e) {
+            logger.warn("Issue encountered during (?) connection?",e);
+        } finally {
+            try {
+                pool.awaitTermination(1000,TimeUnit.MILLISECONDS);
+            } catch (InterruptedException e) {
+            }
+            pool.shutdownNow();
+            if (consumer != null) {
+                consumer.stop();
+                consumer.close();
+            }
+            if (session != null) {
+                session.closeSession();
+            }
         }
         
         
         
+
 
 
     
@@ -121,9 +239,9 @@ public class SimpleGpsPublisher implements Runnable {
     public static void main(String... args) throws IOException {
         
         
-        SimpleGpsPublisher pub = new SimpleGpsPublisher("adsf","asdf","adsf","asdf");
+        SimpleGpsPublisher pub = new SimpleGpsPublisher("mr1bjj91s4bc2t.messaging.solace.cloud","aaron-demo-singapore","solace-cloud-client","76be0527a6kr46hvcrbr5l5dac");
         
-        
+        pub.run();
         
         
         
