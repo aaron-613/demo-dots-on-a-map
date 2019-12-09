@@ -239,8 +239,20 @@ public class SimpleGpsPublisher implements Runnable {
     
     public static void main(String... args) throws IOException {
         
-        
-        SimpleGpsPublisher pub = new SimpleGpsPublisher("mr1bjj91s4bc2t.messaging.solace.cloud","aaron-demo-singapore","solace-cloud-client","76be0527a6kr46hvcrbr5l5dac");
+        if (args.length < 3) {
+            System.out.println("Not enough arguments!");
+            System.out.println("Usage: SimpleGpsPublisher <host:port> <vpn-name> <username> [password]");
+            System.exit(-1);
+        }
+        String host = args[0];
+        String vpn = args[1];
+        String user = args[2];
+        String pw = "";
+        if (args.length > 3) {
+            pw = args[3];
+        }
+        SimpleGpsPublisher pub = new SimpleGpsPublisher(host,vpn,user,pw);
+//        SimpleGpsPublisher pub = new SimpleGpsPublisher("mr1bjj91s4bc2t.messaging.solace.cloud","aaron-demo-singapore","solace-cloud-client","76be0527a6kr46hvcrbr5l5dac");
         
         pub.run();
         
