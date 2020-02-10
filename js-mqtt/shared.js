@@ -9,6 +9,7 @@
     username: 'solace-cloud-client',
     password: '76be0527a6kr46hvcrbr5l5dac'
   }
+
 /*
   // eclipse test server
   var deets = {
@@ -19,7 +20,8 @@
     password: '',
     //path: '/test',
   }
-
+*/
+/*
   // marc's server
   var deets = {
     host: 'mr1bjj91s4dubz.messaging.solace.cloud',
@@ -40,6 +42,8 @@
     var connectOptions = {};
     if (deets['ssl'] == true) {
       connectOptions["useSSL"] = true;
+    } else {
+      connectOptions["useSSL"] = false;
     }
     connectOptions["reconnect"] = true;
     connectOptions["userName"] = deets['username'];

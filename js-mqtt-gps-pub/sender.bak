@@ -1,10 +1,9 @@
 <html>
 <head>
 <meta http-equiv="content-type" content="text/html; charset=UTF-8">
-  <script src="paho-mqtt-min.js" type="text/javascript"></script>
-<!--SCRIPT TYPE="text/javascript" src="./lib-js/solclient-debug.js"></SCRIPT>
-<SCRIPT TYPE="text/javascript" src="solace_geo.js"></SCRIPT-->
-<title>Simple MQTT Location Sender</title>
+<SCRIPT TYPE="text/javascript" src="./lib-js/solclient-debug.js"></SCRIPT>
+<SCRIPT TYPE="text/javascript" src="solace_geo.js"></SCRIPT>
+<title>Location & Video over Solace demonstration</title>
 <style>
   html,body {
     //width: 350px;
@@ -27,7 +26,9 @@
 </style>
 </head>
 <body>
-<h1>Simple MQTT Geolocation publisher</h1>
+<p><img src="solace-logo-200px.png"></p>
+<h1>London Users' Group Demo</h1>
+<h2>July 2015</h2>
 <p>
 A demonstration of sending real-time geographic location and video information over a Solace message bus.</p>
 <div id="user-section">
@@ -39,21 +40,46 @@ A demonstration of sending real-time geographic location and video information o
 <hr>
 <p id="position"><b>Location:</b> <br/><b>Message Count:</b> </p>
 <hr>
+<p><video autoplay id="sourcevid", positition="fixed", top="0", left="0", opacity="0"></video></p>
 <p id="log">Status: </p>
+<p><span style="font-size: 10pt;">&copy; Aaron & Tom @ Solace</span></p>
+
 
 <script>
-  var position_text = document.getElementById("position");
-  var count = 0;
+var position_text = document.getElementById("position");
+var count = 0;
+var video = document.getElementsByTagName('video')[0];
+navigator.getUserMedia = navigator.getUserMedia ||
+                        navigator.webkitGetUserMedia ||
+                        navigator.mozGetUserMedia ||
+                        navigator.msGetUserMedia;
 
-  var user = "test";
-  var topic;
-  var clientName;
-  var lat, lon;
-  var started = false;
+var back = document.createElement('canvas');
+var backcontext = back.getContext('2d');
+var user = "test";
+var topic;
+var clientName;
+var lat, lon;
+var started = false;
+var videoOn = true;
+var vidQuality = 0.9;
+
+var WebcamConstraints = {
+  video: {
+    mandatory: {
+      maxWidth: 320,
+      maxHeight: 180,
+    }
+  }
+};
 
 function draw(topic, video, bc, w, h) {
   if (!started) {
     return;
+  }
+  bc.drawImage(video, 0, 0, w, h);
+  if (solace_ready) {
+    count++;
   }
   var newLoc = "<b>Location:</b> " + Math.abs(lat).toFixed(6);
   if (lat < 0) newLoc += "S";
@@ -62,20 +88,44 @@ function draw(topic, video, bc, w, h) {
   if (lon < 0) newLoc += "W";
   else newLoc += "E";
   position_text.innerHTML = newLoc + "<br/><b>Message Count:</b> " + count;	
-//  send(topic,null,user);
+  if (videoOn) {
+    var imgString = back.toDataURL("image/jpeg",vidQuality);
+    //if (imgString.length < 5000) vidQuality +=
+    send(topic,imgString,user);
+  }
+  else  send(topic,null,user);
 }
 
 var log = function(msg) {
   document.getElementById('log').innerHTML = "Status: "+msg;
 };
 
-  function getLocation() {
-    if (navigator.geolocation) {
-      navigator.geolocation.watchPosition(showPosition,geoShowError);
-    } else { 
-      position_text.innerHTML = "Geolocation is not supported by this browser.";
-    }
+function vidSuccessCallback( stream ) {
+  if (!solace_ready) {
+    return;
   }
+  //video.mozSrcObject = stream;
+  if (window.URL || window.webkitURL) {
+    video.src = window.URL.createObjectURL(stream);
+  } else {
+    video.mozSrcObject = stream;
+  }
+};
+
+function vidErrorCallback( error ) {
+  // just fail silently
+  //log("A video error occurred: [CODE " + error.code + "]");
+  videoOn = false;
+        alert("Native web camera streaming is not supported in this browser!");
+};
+
+function getLocation() {
+    if (navigator.geolocation) {
+        navigator.geolocation.watchPosition(showPosition,geoShowError);
+    } else { 
+        position_text.innerHTML = "Geolocation is not supported by this browser.";
+    }
+}
 
 function showPosition(position) {
   started = true;
@@ -112,79 +162,23 @@ function geoShowError(error) {
     }
 }
 
-
-    var deets = {
-      host: 'mr1bjj91s4bc2t.messaging.solace.cloud',
-      port: 8443,
-      ssl: true,
-      username: 'solace-cloud-client',
-      password: '76be0527a6kr46hvcrbr5l5dac'
-    }
-  
-    // this is for MQTT, it should return a connected or connecting valid Paho client
-    function getClientConnection(uniqueID,onMessageArrived,onConnectionLost,onConnect) {
-      var client = new Paho.MQTT.Client(deets['host'], Number(deets['port']), "meet_" + uniqueID); // AWS SGP Nano
-      // set the callback handlers
-      client.onConnectionLost = onConnectionLost;
-      client.onMessageArrived = onMessageArrived;
-      // define connection options
-      var connectOptions = {};
-      if (deets['ssl'] == true) {
-        connectOptions["useSSL"] = true;
-      }
-      connectOptions["reconnect"] = true;
-      connectOptions["userName"] = deets['username'];
-      connectOptions["password"] = deets['password'];  // AWS SGP Nano
-      connectOptions["onSuccess"] = onConnect;
-      // try to connect!
-      client.connect(connectOptions);
-      return client;
-    }
-    
-    function writeConsole(msg) {
-      console.log(msg);
-    }
-
-    var isConnected = false;
-    writeConsole("Connecting...");
-    var uniqueID = "abcdefg";
-    var mqttClient = getClientConnection(uniqueID,onMessageArrived,onConnectionLost,onConnect);
-
-    // called when the client connects
-    function onConnect() {
-      writeConsole("Connected!");
-      isConnected = true;
-      getLocation();
-
-    }
-
-    // called when the client loses its connection
-    function onConnectionLost(responseObject) {
-      isConnected = false;
-      if (responseObject.errorCode !== 0) {
-        writeConsole("Connection Lost! " + responseObject.errorMessage);
-      }
-    }
-
-    // called when a message arrives
-    function onMessageArrived(msg) {
-      if (msg.destinationName.indexOf("gps/") == 0) {
-          parseGeoMessage(msg);
-      }
-    }
-
 function start() {
+  connect();
 console.log("here3");
   user = document.getElementById('user-entry').value;
   parent = document.getElementById('user-section');
   parent.removeChild(document.getElementById("form"));
-  getClientConnection(user,onMessageArrived,onConnectionLost,onConnect);
   
+  if(navigator.getUserMedia) {
+        //navigator.getUserMedia(WebcamConstraints, vidSuccessCallback, vidErrorCallback);
+        navigator.getUserMedia({video: true}, vidSuccessCallback, vidErrorCallback);
+  } else {
+        alert("Native web camera streaming is not supported in this browser!");
+        //log("Native web camera streaming is not supported in this browser!");
+  };
   getLocation();
-//  interval = setInterval(function(){ draw(topic, video, backcontext, back.width, back.height); },250);
+  interval = setInterval(function(){ draw(topic, video, backcontext, back.width, back.height); },250);
 }
-
-
 
 </script>
 </body>
