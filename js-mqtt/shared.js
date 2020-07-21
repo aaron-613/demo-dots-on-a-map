@@ -3,11 +3,11 @@
 */
 
   var deets = {
-    host: 'mr1bjj91s4bc2t.messaging.solace.cloud',
+    host: '.messaging.solace.cloud',
     port: 8443,
     ssl: true,
     username: 'solace-cloud-client',
-    password: '76be0527a6kr46hvcrbr5l5dac'
+    password: ''
   }
 
 /*
@@ -19,16 +19,6 @@
     username: '',
     password: '',
     //path: '/test',
-  }
-*/
-/*
-  // marc's server
-  var deets = {
-    host: 'mr1bjj91s4dubz.messaging.solace.cloud',
-    port: 8443,
-    ssl: true,
-    username: 'solace-cloud-client',
-    password: 'efe1hb5vq8aonuatvup5iublco'
   }
 */
 

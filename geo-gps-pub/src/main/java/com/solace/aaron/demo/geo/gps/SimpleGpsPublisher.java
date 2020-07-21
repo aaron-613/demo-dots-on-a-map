@@ -252,7 +252,6 @@ public class SimpleGpsPublisher implements Runnable {
             pw = args[3];
         }
         SimpleGpsPublisher pub = new SimpleGpsPublisher(host,vpn,user,pw);
-//        SimpleGpsPublisher pub = new SimpleGpsPublisher("mr1bjj91s4bc2t.messaging.solace.cloud","aaron-demo-singapore","solace-cloud-client","76be0527a6kr46hvcrbr5l5dac");
         
         pub.run();
         

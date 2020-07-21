@@ -665,19 +665,12 @@
         mySessionProperties.connectTimeoutInMsecs = OPERATION_TIMEOUT;
         mySessionProperties.readTimeoutInMsecs = OPERATION_TIMEOUT;
         mySessionProperties.keepAliveIntervalsLimit = 10;
-        //mySessionProperties.userName = "geoclient";
         mySessionProperties.userName = "solace-cloud-client";
-        //mySessionProperties.password = "password";
-        mySessionProperties.password = "76be0527a6kr46hvcrbr5l5dac";
+        mySessionProperties.password = "";
         mySessionProperties.vpnName = "aaron-demo-singapore";
-        //mySessionProperties.vpnName = "geo-routing-demo";
         ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-        //mySessionProperties.url = "http://192.168.56.101";
-//        mySessionProperties.url = "http://54.255.230.239";
-        //mySessionProperties.url = "http://sgdemo1.solace.com";
-        //mySessionProperties.url = "ws://mr-cfitsqc51.messaging.datago.io:20227";
-        mySessionProperties.url = "wss://mr1bjj91s4bc2t.messaging.solace.cloud:443";  // aron's new SC service
+        mySessionProperties.url = "wss://messaging.solace.cloud:443";  // aron's new SC service
 
         mySessionProperties.includeSenderId = true;
         //            myNickName = mySessionProperties.clientName = ns.utils_getNickName();
