@@ -1,4 +1,4 @@
-package com.solace.aaron.demo.geo.gps;
+package com.solace.aaron.demo.geo.simple;
 
 import java.awt.geom.Point2D;
 import java.io.BufferedReader;
@@ -25,7 +25,7 @@ import com.solacesystems.jcsmp.JCSMPProducerEventHandler;
 import com.solacesystems.jcsmp.JCSMPProperties;
 import com.solacesystems.jcsmp.JCSMPReconnectEventHandler;
 import com.solacesystems.jcsmp.JCSMPSession;
-import com.solacesystems.jcsmp.JCSMPStreamingPublishEventHandler;
+import com.solacesystems.jcsmp.JCSMPStreamingPublishCorrelatingEventHandler;
 import com.solacesystems.jcsmp.ProducerEventArgs;
 import com.solacesystems.jcsmp.SessionEventArgs;
 import com.solacesystems.jcsmp.SessionEventHandler;
@@ -122,18 +122,17 @@ public class SimpleGpsPublisher implements Runnable {
             logger.info("Connected!");
             connected = true;
             // create the message producer... just basic anonymous classes are fine
-            producer = session.getMessageProducer(new JCSMPStreamingPublishEventHandler() {
+            producer = session.getMessageProducer(new JCSMPStreamingPublishCorrelatingEventHandler() {
                 
                 @Override
-                public void responseReceived(String messageID) {
-                    // publishing Direct messages, so this shouldn't be called?
-                    logger.info("Streaming Publish Event Handler received response for messaageID "+messageID);
+                public void responseReceivedEx(Object correlationKey) {
+                    // publishing Direct messages, so this shouldn't be called? should be impossible!
                 }
                 
                 @Override
-                public void handleError(String messageID, JCSMPException cause, long timestamp) {
+                public void handleErrorEx(Object correlationKey, JCSMPException cause, long timestamp) {
                     // publishing Direct messages, so this shouldn't be called?
-                    logger.warn("Streaming Publish Event Handler received error for messaageID "+messageID);
+                    logger.warn("Streaming Publish Event Handler received error for key "+correlationKey);
                     logger.warn(cause);
                 }
             },new JCSMPProducerEventHandler() {

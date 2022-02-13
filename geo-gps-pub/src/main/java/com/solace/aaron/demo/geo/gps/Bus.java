@@ -4,8 +4,7 @@ import java.awt.geom.Point2D;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 
-import javax.json.Json;
-import javax.json.JsonObjectBuilder;
+import org.json.JSONObject;
 
 import com.solacesystems.jcsmp.BytesXMLMessage;
 import com.solacesystems.jcsmp.Destination;
@@ -24,7 +23,7 @@ public class Bus implements Runnable {
     
     static RouteLoader busLoader = new RouteLoader();
     static {
-        String filename = "coords2.txt";
+        String filename = "/sg-buses2.txt";
         try {
             busLoader.load(filename);
         } catch (FileNotFoundException e) {
@@ -45,8 +44,9 @@ public class Bus implements Runnable {
     
     final int routeNum;
     int positionIndex;  // which 'tick' along the route is this?
-    final int vehicleNum;
+    final int busNum;
     Status status = Status.OK;
+    double passgenerCapacity;
     boolean overrideStop = false;
     int busStopCount = 0;  // if == 0, moving; once arrive at bus stop, increase count to 4 and stay there
 
@@ -59,13 +59,15 @@ public class Bus implements Runnable {
             throw new AssertionError("somehow made a position that's the same size!");
         }
         //this.vehicleNum = loader.addVehicle(this);  // not good code practice to call another method with 'this' while still in the constructor!
-        this.vehicleNum = busNum;
+        this.busNum = busNum;
+        passgenerCapacity = Math.random();  // start between 0 and 1
     }
     
     protected Bus(int busNum, int routeNum, int positionIndex) {
         this.routeNum = routeNum;
-        this.vehicleNum = busNum;
+        this.busNum = busNum;
         this.positionIndex = positionIndex;
+        passgenerCapacity = Math.random();  // start between 0 and 1
     }
     
     void stopBus() {
@@ -103,6 +105,10 @@ public class Bus implements Runnable {
                     }
                 } else {  // at a bus stop
                     busStopCount--;
+                    // change the passenger capacity a bit
+                    passgenerCapacity += ((Math.random()*0.2)-0.1);  // +/- 0.2 for change in passengers
+                    passgenerCapacity = Math.max(0,passgenerCapacity);
+                    passgenerCapacity = Math.min(1,passgenerCapacity);
                 }
             }
         }
@@ -122,11 +128,11 @@ public class Bus implements Runnable {
             tick();
         } catch (RuntimeException e) {
             e.printStackTrace();
-            System.err.printf("route %d, pos %d, veh num %d, dir %s%n",routeNum,positionIndex,vehicleNum);
+            System.err.printf("route %d, pos %d, veh num %d, dir %s%n",routeNum,positionIndex,busNum);
             System.exit(-1);
         } catch (Error e) {
             e.printStackTrace();
-            System.err.printf("route %d, pos %d, veh num %d, dir %s%n",routeNum,positionIndex,vehicleNum);
+            System.err.printf("route %d, pos %d, veh num %d, dir %s%n",routeNum,positionIndex,busNum);
             System.exit(-1);
         }
     }
@@ -141,7 +147,7 @@ public class Bus implements Runnable {
 
     @Override
     public String toString() {
-        return String.format("Bus %d %s on route %d, pos %d",this.vehicleNum,this.routeNum,this.positionIndex);
+        return String.format("Bus %d on route %d, pos %d", busNum, routeNum, positionIndex);
     }
 
     void fixCar() {
@@ -168,7 +174,7 @@ public class Bus implements Runnable {
         
         TextMessage msg = JCSMPFactory.onlyInstance().createMessage(TextMessage.class);
         msg.setText(String.format("Bus # %d (on route %d) is having issues... status == %s",
-                this.vehicleNum,this.routeNum,status));
+                this.busNum,this.routeNum,status));
         System.out.println("ALERT MSG: "+msg.getText());
 //        Broadcaster.onlyInstance().sendMessage(msg,Broadcaster.TOPIC_DISPATCH);
     }
@@ -181,8 +187,17 @@ public class Bus implements Runnable {
 
     Destination genTopic() {
         // geo/bus/1234/001.238212/103.128345/023/OK
-        StringBuilder sb = new StringBuilder("geo/bus/");
+    	// NEW : bus/gps/v2/001.12345/0103.12345/{head}/132/8293/
+        StringBuilder sb = new StringBuilder("bus_trak/gps/v2/");
 //        sb.append(RangeUtils.helperMakeSubCoordString(quadrant.xNegativeModifier,innerX,xFactor,xPadding,xNeedNegs)).append("*/");
+        sb.append(String.format("%03d", routeNum)).append('/');
+        sb.append(String.format("%05d", busNum)).append('/');
+        sb.append(String.format("%09.5f", getPosition().x)).append('/');
+        sb.append(String.format("%010.5f", getPosition().y)).append('/');
+        String base6Heading = Integer.toString((int)Math.round(VehicleUtils.calcHeadingForRoute(routeNum, positionIndex)/22.5),6);
+        if (base6Heading.length() < 2) sb.append('0');
+        sb.append(base6Heading).append('/');
+//        sb.append(String.format("%s", Integer.toString(VehicleUtils.calcHeadingForRoute(routeNum, positionIndex)/10))).append('/');
         sb.append(getPracticalStatus());
         return JCSMPFactory.onlyInstance().createTopic(sb.toString());
     }
@@ -195,19 +210,28 @@ public class Bus implements Runnable {
         }
     }
     
+    double toFixed(double d, int decimals) {
+    	d *= Math.pow(10, decimals);
+    	d = Math.round(d);
+    	d /= Math.pow(10, decimals);
+    	return d;
+    }
+    
     String genPayload() {
-        JsonObjectBuilder job = Json.createObjectBuilder();
-        job.add("vehicleNum",vehicleNum);
-        job.add("routeNum",routeNum);
-        job.add("lat",getPosition().x);
-        job.add("lon",getPosition().y);
+    	JSONObject job = new JSONObject();
+        job.put("busNum",busNum);
+        job.put("routeNum",routeNum);
+        job.put("latitude",getPosition().x);
+        job.put("longitude",getPosition().y);
         if (getPracticalStatus().equals("FAULT")) {
-            job.add("status",getPracticalStatus()+": "+status);
+            job.put("status",getPracticalStatus()+": "+status);
         } else {
-            job.add("status",getPracticalStatus());
+            job.put("status",getPracticalStatus());
         }
-        job.add("speed",calcSpeed() > 60 ? 60 : calcSpeed());
-        return job.build().toString();
+        job.put("speed",calcSpeed() > 60 ? 60 : calcSpeed());
+        job.put("heading", VehicleUtils.calcHeadingForRoute(routeNum, positionIndex));
+        job.put("psgrCap", toFixed(passgenerCapacity,2));
+        return job.toString(2);
     }
     
 

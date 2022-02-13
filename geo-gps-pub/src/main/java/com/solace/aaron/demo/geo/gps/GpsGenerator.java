@@ -14,7 +14,7 @@ import com.solacesystems.jcsmp.JCSMPProducerEventHandler;
 import com.solacesystems.jcsmp.JCSMPProperties;
 import com.solacesystems.jcsmp.JCSMPReconnectEventHandler;
 import com.solacesystems.jcsmp.JCSMPSession;
-import com.solacesystems.jcsmp.JCSMPStreamingPublishEventHandler;
+import com.solacesystems.jcsmp.JCSMPStreamingPublishCorrelatingEventHandler;
 import com.solacesystems.jcsmp.ProducerEventArgs;
 import com.solacesystems.jcsmp.Topic;
 import com.solacesystems.jcsmp.XMLMessageConsumer;
@@ -59,7 +59,6 @@ public class GpsGenerator {
         this.vpn = vpn;
         this.user = user;
         this.pw = pw;
-      //  INSTANCE = this;  // terrible coding!
     }
     
     void sendMessage(BytesXMLMessage message, Destination dest) {
@@ -114,16 +113,16 @@ public class GpsGenerator {
         session.setProperty(JCSMPProperties.CLIENT_NAME,"gpsgen_"+session.getProperty(JCSMPProperties.CLIENT_NAME));
         try {
 	        try {
-	            producer = session.getMessageProducer(new JCSMPStreamingPublishEventHandler() {
+	            producer = session.getMessageProducer(new JCSMPStreamingPublishCorrelatingEventHandler() {
 	                
 	                @Override
-	                public void responseReceived(String messageID) {
+	                public void responseReceivedEx(Object key) {
 	                	// won't since we're only sending Direct messages
 	                	System.out.println("prodcer response received");
 	                }
 	                
 	                @Override
-	                public void handleError(String messageID, JCSMPException cause, long timestamp) {
+	                public void handleErrorEx(Object key, JCSMPException cause, long timestamp) {
 	                	// shouldn't get a publisher error (NACK), but may have exceptions thrown for connectivity
 	                	System.err.println("Producer handleError() got something: "+cause.toString());
 	                }
@@ -175,7 +174,7 @@ public class GpsGenerator {
 	                	
 	                	System.out.println(topic);
 	                	
-	                	if (topic.startsWith("comms/")) {
+	                	if (topic.startsWith("bus/comms/")) {
 	                		if (topic.equals(TOPIC_DISPATCH.getName())) {  // this one is meant for me, command and control
 	                			// or maybe the map display... I dunno
 	                			
@@ -184,12 +183,12 @@ public class GpsGenerator {
 	                			for (Bus bus : busTracker.buses) {
 	                				bus.receiveMessage(message);
 	                			}
-	                		} else if (topic.startsWith("comms/route/")) {
+	                		} else if (topic.startsWith("bus/comms/route/")) {
 	                			int routeNum = Integer.parseInt(topic.split("\\/")[2]);
 	                			for (Bus bus : busTracker.busByRoute.get(routeNum)) {
 	                				bus.receiveMessage(message);
 	                			}
-	                		} else if (topic.startsWith("comms/bus/")) {
+	                		} else if (topic.startsWith("bus/comms/bus/")) {
 	                			int busNum = Integer.parseInt(topic.split("\\/")[2]);
 	                			busTracker.getBus(busNum).receiveMessage(message);
 	                		} else {
@@ -200,7 +199,7 @@ public class GpsGenerator {
 	                		
 	                		
 	                		
-	                	} else if (topic.startsWith("ctrl/")) {
+	                	} else if (topic.startsWith("bus/ctrl/")) {
                 			int busNum = Integer.parseInt(topic.split("\\/")[2]);
                 			String action = topic.split("\\/")[3];
                 			if (action.equals("start")) {
@@ -208,6 +207,8 @@ public class GpsGenerator {
                 			} else if (action.equals("stop")) {
                 				busTracker.getBus(busNum).stopBus();
                 			} 
+	                	} else {
+	                		System.err.println("Received unexpected bus topic: "+topic);
 	                	}
 	                	
 	                	
@@ -221,8 +222,8 @@ public class GpsGenerator {
 	            });
 	            System.out.println("Sending \"GPS\" data now...");
 	            connected = true;
-	            session.addSubscription(JCSMPFactory.onlyInstance().createTopic("ctrl/>"),true);
-	            session.addSubscription(JCSMPFactory.onlyInstance().createTopic("comms/>"),true);
+	            session.addSubscription(JCSMPFactory.onlyInstance().createTopic("bus/ctrl/>"),true);
+	            session.addSubscription(JCSMPFactory.onlyInstance().createTopic("bus/comms/>"),true);
 	            consumer.start();
 	        } catch (JCSMPException e) {
 	        	// should only throw an exception during start up (from this thread)... otherwise the exception
@@ -258,7 +259,8 @@ public class GpsGenerator {
 
   
         initializeSingletonBroadcaster(host, vpn, user, pw);
-        onlyInstance().addBues();
+//        onlyInstance().addBues();
+        onlyInstance().addRandomBus(500);
         //onlyInstance().addRandomTaxi(1000);
         onlyInstance().run();
     }

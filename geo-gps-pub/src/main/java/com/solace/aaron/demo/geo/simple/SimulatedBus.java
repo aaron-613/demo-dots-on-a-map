@@ -1,4 +1,4 @@
-package com.solace.aaron.demo.geo.gps;
+package com.solace.aaron.demo.geo.simple;
 
 import java.awt.geom.Point2D;
 import java.util.List;

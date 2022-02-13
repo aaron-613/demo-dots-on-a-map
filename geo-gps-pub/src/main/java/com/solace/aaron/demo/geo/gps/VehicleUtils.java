@@ -4,26 +4,11 @@ import java.awt.geom.Point2D;
 
 public class VehicleUtils {
 
-	
-    public static int calcHeading(int route, int pos) {
-    	return calcHeading(route,pos);
-    }
-    
-    public static int calcHeading(int route, int pos, RouteLoader.Direction dir) {
-    	switch (dir) {
-    	case BACKWARD:
-        	if (pos == Bus.busLoader.getRoute(route).coords.size()-1) {  // use the previous point to calculate heading
-        		return heading(Bus.busLoader.getCoord(route,pos),Bus.busLoader.getCoord(route,pos-1));
-        	} else {  // starting point, use the next one rather than the last
-        		return heading(Bus.busLoader.getCoord(route,pos+1),Bus.busLoader.getCoord(route,pos));
-        	}
-    	case FORWARD:
-    	default:
-        	if (pos > 0) {  // use the previous point to calculate heading
-        		return heading(Bus.busLoader.getCoord(route,pos-1),Bus.busLoader.getCoord(route,pos));
-        	} else {  // starting point, use the next one rather than the last
-        		return heading(Bus.busLoader.getCoord(route,pos),Bus.busLoader.getCoord(route,pos+1));
-        	}
+    public static int calcHeadingForRoute(int route, int pos) {
+    	if (pos > 0) {  // use the previous point to calculate heading
+    		return heading(Bus.busLoader.getCoord(route,pos-1),Bus.busLoader.getCoord(route,pos));
+    	} else {  // starting point, use the next one rather than the last
+    		return heading(Bus.busLoader.getCoord(route,pos),Bus.busLoader.getCoord(route,pos+1));
     	}
     }
 
