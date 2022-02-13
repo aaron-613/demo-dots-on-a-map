@@ -194,9 +194,9 @@ public class Bus implements Runnable {
         sb.append(String.format("%05d", busNum)).append('/');
         sb.append(String.format("%09.5f", getPosition().x)).append('/');
         sb.append(String.format("%010.5f", getPosition().y)).append('/');
-        String base6Heading = Integer.toString((int)Math.round(VehicleUtils.calcHeadingForRoute(routeNum, positionIndex)/22.5),6);
-        if (base6Heading.length() < 2) sb.append('0');
-        sb.append(base6Heading).append('/');
+        String base4Heading = Integer.toString((int)Math.floor(VehicleUtils.calcHeadingForRoute(routeNum, positionIndex)/22.5),4);
+        if (base4Heading.length() < 2) sb.append('0');
+        sb.append(base4Heading).append('/');
 //        sb.append(String.format("%s", Integer.toString(VehicleUtils.calcHeadingForRoute(routeNum, positionIndex)/10))).append('/');
         sb.append(getPracticalStatus());
         return JCSMPFactory.onlyInstance().createTopic(sb.toString());
