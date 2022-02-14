@@ -41,8 +41,8 @@ public class GpsGenerator {
     ScheduledExecutorService service = Executors.newScheduledThreadPool(20);
     
     //public static Broadcaster INSTANCE;
-    public static Topic TOPIC_BROADCAST = JCSMPFactory.onlyInstance().createTopic("comms/broadcast");
-    public static Topic TOPIC_DISPATCH = JCSMPFactory.onlyInstance().createTopic("comms/dispatch");
+    public static Topic TOPIC_BROADCAST = JCSMPFactory.onlyInstance().createTopic("bus_trak/comms/broadcast");
+    public static Topic TOPIC_DISPATCH = JCSMPFactory.onlyInstance().createTopic("bus_trak/comms/dispatch");
 
     public static void initializeSingletonBroadcaster(String host, String vpn, String user, String pw) {
     	if (INSTANCE != null) throw new AssertionError();
@@ -174,7 +174,7 @@ public class GpsGenerator {
 	                	
 	                	System.out.println(topic);
 	                	
-	                	if (topic.startsWith("bus/comms/")) {
+	                	if (topic.startsWith("bus_trak/comms/")) {
 	                		if (topic.equals(TOPIC_DISPATCH.getName())) {  // this one is meant for me, command and control
 	                			// or maybe the map display... I dunno
 	                			
@@ -183,23 +183,19 @@ public class GpsGenerator {
 	                			for (Bus bus : busTracker.buses) {
 	                				bus.receiveMessage(message);
 	                			}
-	                		} else if (topic.startsWith("bus/comms/route/")) {
+	                		} else if (topic.startsWith("bus_trak/comms/route/")) {
 	                			int routeNum = Integer.parseInt(topic.split("\\/")[2]);
 	                			for (Bus bus : busTracker.busByRoute.get(routeNum)) {
 	                				bus.receiveMessage(message);
 	                			}
-	                		} else if (topic.startsWith("bus/comms/bus/")) {
+	                		} else if (topic.startsWith("bus_trak/comms/bus/")) {
 	                			int busNum = Integer.parseInt(topic.split("\\/")[2]);
 	                			busTracker.getBus(busNum).receiveMessage(message);
 	                		} else {
 	                			// have no idea what other kind of comms message I'd receive
-	                			
 	                		}
 	                		
-	                		
-	                		
-	                		
-	                	} else if (topic.startsWith("bus/ctrl/")) {
+	                	} else if (topic.startsWith("bus_trak/ctrl/")) {
                 			int busNum = Integer.parseInt(topic.split("\\/")[2]);
                 			String action = topic.split("\\/")[3];
                 			if (action.equals("start")) {
@@ -210,8 +206,6 @@ public class GpsGenerator {
 	                	} else {
 	                		System.err.println("Received unexpected bus topic: "+topic);
 	                	}
-	                	
-	                	
 	                }
 	                
 	                @Override
@@ -222,8 +216,8 @@ public class GpsGenerator {
 	            });
 	            System.out.println("Sending \"GPS\" data now...");
 	            connected = true;
-	            session.addSubscription(JCSMPFactory.onlyInstance().createTopic("bus/ctrl/>"),true);
-	            session.addSubscription(JCSMPFactory.onlyInstance().createTopic("bus/comms/>"),true);
+	            session.addSubscription(JCSMPFactory.onlyInstance().createTopic("bus_trak/ctrl/>"),true);
+	            session.addSubscription(JCSMPFactory.onlyInstance().createTopic("bus_trak/comms/>"),true);
 	            consumer.start();
 	        } catch (JCSMPException e) {
 	        	// should only throw an exception during start up (from this thread)... otherwise the exception
