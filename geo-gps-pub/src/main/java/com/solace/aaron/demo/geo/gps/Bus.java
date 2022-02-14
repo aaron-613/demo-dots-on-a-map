@@ -49,6 +49,7 @@ public class Bus implements Runnable {
     double passgenerCapacity;
     boolean overrideStop = false;
     int busStopCount = 0;  // if == 0, moving; once arrive at bus stop, increase count to 4 and stay there
+    String extraRouteChar = "";
 
     // each Bus should be listening on their topics: comm/route/012, comm/bus/1234, comm/broadcast
     
@@ -61,6 +62,12 @@ public class Bus implements Runnable {
         //this.vehicleNum = loader.addVehicle(this);  // not good code practice to call another method with 'this' while still in the constructor!
         this.busNum = busNum;
         passgenerCapacity = Math.random();  // start between 0 and 1
+        int c = (int)(Math.random()*10);
+        if (c < 4) extraRouteChar = "A";
+        else if (c < 7) extraRouteChar = "B";
+        else if (c < 9) extraRouteChar = "M";
+        else extraRouteChar = "X";
+//        if (Math.random() < 0.5) extraRouteChar = "A";
     }
     
     protected Bus(int busNum, int routeNum, int positionIndex) {
@@ -190,7 +197,7 @@ public class Bus implements Runnable {
     	// NEW : bus/gps/v2/001.12345/0103.12345/{head}/132/8293/
         StringBuilder sb = new StringBuilder("bus_trak/gps/v2/");
 //        sb.append(RangeUtils.helperMakeSubCoordString(quadrant.xNegativeModifier,innerX,xFactor,xPadding,xNeedNegs)).append("*/");
-        sb.append(String.format("%03d", routeNum)).append('/');
+        sb.append(String.format("%03d", routeNum+1)).append(extraRouteChar).append('/');
         sb.append(String.format("%05d", busNum)).append('/');
         sb.append(String.format("%09.5f", getPosition().x)).append('/');
         sb.append(String.format("%010.5f", getPosition().y)).append('/');
@@ -220,7 +227,7 @@ public class Bus implements Runnable {
     String genPayload() {
     	JSONObject job = new JSONObject();
         job.put("busNum",busNum);
-        job.put("routeNum",routeNum);
+        job.put("routeNum",(routeNum+1) + extraRouteChar);
         job.put("latitude",getPosition().x);
         job.put("longitude",getPosition().y);
         if (getPracticalStatus().equals("FAULT")) {

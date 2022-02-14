@@ -31,12 +31,12 @@ public class RouteLoader {
     }
 
     List<Route> routes = new ArrayList<Route>();
-    //List<Vehicle> vehicles = new ArrayList<Vehicle>();
     
     public int getNumRoutes() {
         return routes.size();
     }
     
+    /** Goes from 1..n, not 0..n-1 */
     public Route getRoute(int routeNum) {
         return routes.get(routeNum);
     }
