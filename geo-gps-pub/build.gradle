@@ -24,7 +24,7 @@ idea {
     }
 }
 
-mainClassName = 'com.solace.aaron.demo.geo.gps.GpsPublisher'
+mainClassName = 'com.solace.aaron.demo.geo.gps.GpsGenerator'
 
 dependencies {
 
