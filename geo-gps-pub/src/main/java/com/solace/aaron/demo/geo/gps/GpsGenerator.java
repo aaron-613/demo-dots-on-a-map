@@ -105,12 +105,13 @@ public class GpsGenerator {
         properties.setProperty(JCSMPProperties.VPN_NAME,vpn);
         properties.setProperty(JCSMPProperties.USERNAME,user);
         properties.setProperty(JCSMPProperties.PASSWORD,pw);
+        properties.setProperty(JCSMPProperties.REAPPLY_SUBSCRIPTIONS,true);
         JCSMPChannelProperties cp = new JCSMPChannelProperties();
         cp.setReconnectRetries(-1);
         properties.setProperty(JCSMPProperties.CLIENT_CHANNEL_PROPERTIES,cp);
         session = JCSMPFactory.onlyInstance().createSession(properties);
         session.connect();
-        session.setProperty(JCSMPProperties.CLIENT_NAME,"gpsgen_"+session.getProperty(JCSMPProperties.CLIENT_NAME));
+        session.setProperty(JCSMPProperties.CLIENT_NAME,"BusGpsGenV2_"+session.getProperty(JCSMPProperties.CLIENT_NAME));
         try {
 	        try {
 	            producer = session.getMessageProducer(new JCSMPStreamingPublishCorrelatingEventHandler() {
@@ -174,7 +175,7 @@ public class GpsGenerator {
 	                	
 	                	System.out.println(topic);
 	                	
-	                	if (topic.startsWith("bus_trak/comms/")) {
+	                	if (topic.startsWith("bus_trak/comms/")) {/*
 	                		if (topic.equals(TOPIC_DISPATCH.getName())) {  // this one is meant for me, command and control
 	                			// or maybe the map display... I dunno
 	                			
@@ -194,10 +195,10 @@ public class GpsGenerator {
 	                		} else {
 	                			// have no idea what other kind of comms message I'd receive
 	                		}
-	                		
+	                	*/	
 	                	} else if (topic.startsWith("bus_trak/ctrl/")) {
-                			int busNum = Integer.parseInt(topic.split("\\/")[2]);
-                			String action = topic.split("\\/")[3];
+                			int busNum = Integer.parseInt(topic.split("\\/")[3]);
+                			String action = topic.split("\\/")[4];
                 			if (action.equals("start")) {
                 				busTracker.getBus(busNum).startBus();
                 			} else if (action.equals("stop")) {
@@ -254,7 +255,7 @@ public class GpsGenerator {
   
         initializeSingletonBroadcaster(host, vpn, user, pw);
 //        onlyInstance().addBues();
-        onlyInstance().addRandomBus(500);
+        onlyInstance().addRandomBus(1000);
         //onlyInstance().addRandomTaxi(1000);
         onlyInstance().run();
     }
