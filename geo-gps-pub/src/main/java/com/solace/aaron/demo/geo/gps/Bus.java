@@ -133,6 +133,7 @@ public class Bus implements Runnable {
     public void run() {
         try {
             tick();
+            GpsGenerator.onlyInstance().rescheduleMe(this);
         } catch (RuntimeException e) {
             e.printStackTrace();
             System.err.printf("route %d, pos %d, veh num %d, dir %s%n",routeNum,positionIndex,busNum);

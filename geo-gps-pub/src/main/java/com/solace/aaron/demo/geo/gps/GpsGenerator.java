@@ -79,23 +79,28 @@ public class GpsGenerator {
     
     
     /////////////////////////////////// USER INTERACTION PARTS
+    
+    void rescheduleMe(Bus bus) {
+        service.schedule(bus,(long)(GPS_UPDATE_RATE_MS*0.8 + (GPS_UPDATE_RATE_MS*Math.random()*0.4)),TimeUnit.MILLISECONDS);  // slightly random
+    }
 
     
     void addRandomBus(int number) {
         for (int i=0;i<number;i++) {
         	Bus bus = busTracker.addRandomBus();
-            service.scheduleAtFixedRate(bus,(long)(Math.random()*GPS_UPDATE_RATE_MS),(long)(GPS_UPDATE_RATE_MS*0.9 + (GPS_UPDATE_RATE_MS*Math.random()*0.2)),TimeUnit.MILLISECONDS);
+        	rescheduleMe(bus);
+//            service.scheduleAtFixedRate(bus,(long)(Math.random()*GPS_UPDATE_RATE_MS),(long)(GPS_UPDATE_RATE_MS*0.9 + (GPS_UPDATE_RATE_MS*Math.random()*0.2)),TimeUnit.MILLISECONDS);
 //            System.out.println("added a bus");
         }
     }
     
-    void addBues() {
-    	busTracker.initBuses();
-    	for (Bus bus : busTracker.buses) {
-            service.scheduleAtFixedRate(bus,(long)(Math.random()*GPS_UPDATE_RATE_MS),(long)(GPS_UPDATE_RATE_MS*0.9 + (GPS_UPDATE_RATE_MS*Math.random()*0.2)),TimeUnit.MILLISECONDS);
-        }
-    	System.out.println(busTracker.buses.size()+" buses added.");
-    }
+//    void addBues() {
+//    	busTracker.initBuses();
+//    	for (Bus bus : busTracker.buses) {
+//            service.scheduleAtFixedRate(bus,(long)(Math.random()*GPS_UPDATE_RATE_MS),(long)(GPS_UPDATE_RATE_MS*0.9 + (GPS_UPDATE_RATE_MS*Math.random()*0.2)),TimeUnit.MILLISECONDS);
+//        }
+//    	System.out.println(busTracker.buses.size()+" buses added.");
+//    }
     
 
     void run() throws JCSMPException {
