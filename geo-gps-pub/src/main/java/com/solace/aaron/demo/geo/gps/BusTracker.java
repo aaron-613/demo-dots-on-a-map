@@ -28,7 +28,7 @@ public class BusTracker {
 		return bus;
 	}
 	
-	synchronized Bus addBus(int route, int position) {
+/*	synchronized Bus addBus(int route, int position) {
 		int carNum = buses.size()+1000;
 		Bus bus = new Bus(carNum,route,position);
 		buses.add(bus);
@@ -39,7 +39,7 @@ public class BusTracker {
 		//busByVehNum.put(bus.vehicleNum,bus);
 		return bus;
 	}
-	
+*/	
 	
 	Bus getBus(int busNum) {
 		try {
@@ -50,11 +50,13 @@ public class BusTracker {
 		}
 	}
 	
-	void initBuses() {
+/*	void initBuses() {
 		for (int route=0;route<Bus.busLoader.getNumRoutes();route++) { //RouteLoader.Route route : Bus.busLoader.routes) {
 			for (int position=0;position<(int)Math.floor(Bus.busLoader.getRoute(route).coords.size()/15);position++) {
 				addBus(route,position*15);
 			}
 		}
 	}
+*/
+	
 }

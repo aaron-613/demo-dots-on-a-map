@@ -46,7 +46,7 @@ public class Bus implements Runnable {
     int positionIndex;  // which 'tick' along the route is this?
     final int busNum;
     Status status = Status.OK;
-    double passgenerCapacity;
+    double passgenerCapacity;  // will round to 0, 0.25, 0.5, 0.75, 1
     boolean overrideStop = false;
     int busStopCount = 0;  // if == 0, moving; once arrive at bus stop, increase count to 4 and stay there
     String extraRouteChar = "";
@@ -61,7 +61,7 @@ public class Bus implements Runnable {
         }
         //this.vehicleNum = loader.addVehicle(this);  // not good code practice to call another method with 'this' while still in the constructor!
         this.busNum = busNum;
-        passgenerCapacity = Math.random();  // start between 0 and 1
+        passgenerCapacity = Math.random();
         int c = (int)(Math.random()*10);
         if (c < 4) extraRouteChar = "A";
         else if (c < 7) extraRouteChar = "B";
@@ -70,13 +70,13 @@ public class Bus implements Runnable {
 //        if (Math.random() < 0.5) extraRouteChar = "A";
     }
     
-    protected Bus(int busNum, int routeNum, int positionIndex) {
+/*    protected Bus(int busNum, int routeNum, int positionIndex) {
         this.routeNum = routeNum;
         this.busNum = busNum;
         this.positionIndex = positionIndex;
         passgenerCapacity = Math.random();  // start between 0 and 1
     }
-    
+*/    
     void stopBus() {
         overrideStop = true;
     }
@@ -113,7 +113,7 @@ public class Bus implements Runnable {
                 } else {  // at a bus stop
                     busStopCount--;
                     // change the passenger capacity a bit
-                    passgenerCapacity += ((Math.random()*0.2)-0.1);  // +/- 0.2 for change in passengers
+                    passgenerCapacity += ((Math.random()*0.3)-0.15);  // +/- 0.15 for change in passengers
                     passgenerCapacity = Math.max(0,passgenerCapacity);
                     passgenerCapacity = Math.min(1,passgenerCapacity);
                 }
@@ -224,7 +224,14 @@ public class Bus implements Runnable {
     	d /= Math.pow(10, decimals);
     	return d;
     }
-    
+
+    double quantizeToQuarters(double d) {
+    	d *= 4;
+    	d = Math.round(d);
+    	d /= 4;
+    	return d;
+    }
+
     String genPayload() {
     	JSONObject job = new JSONObject();
         job.put("busNum",busNum);
@@ -238,7 +245,7 @@ public class Bus implements Runnable {
         }
         job.put("speed",calcSpeed() > 60 ? 60 : calcSpeed());
         job.put("heading", VehicleUtils.calcHeadingForRoute(routeNum, positionIndex));
-        job.put("psgrCap", toFixed(passgenerCapacity,2));
+        job.put("psgrCap", quantizeToQuarters(passgenerCapacity));
         return job.toString(2);
     }
     
