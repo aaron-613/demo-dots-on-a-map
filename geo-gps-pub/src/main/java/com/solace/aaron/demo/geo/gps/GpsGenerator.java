@@ -124,13 +124,13 @@ public class GpsGenerator {
 	                @Override
 	                public void responseReceivedEx(Object key) {
 	                	// won't since we're only sending Direct messages
-	                	System.out.println("prodcer response received");
+	                	System.out.println("FYI: prodcer response received");
 	                }
 	                
 	                @Override
 	                public void handleErrorEx(Object key, JCSMPException cause, long timestamp) {
-	                	// shouldn't get a publisher error (NACK), but may have exceptions thrown for connectivity
-	                	System.err.println("Producer handleError() got something: "+cause.toString());
+	                	// shouldn't get a publisher error (NACK), but may have exceptions thrown for connectivity or ACLs??
+	                	System.err.println("FYI: Producer handleError() got something: "+cause.toString());
 	                }
 	            }, new JCSMPProducerEventHandler() {
 					@Override
@@ -156,61 +156,61 @@ public class GpsGenerator {
 	            }, new XMLMessageListener() {
 	                @Override
 	                public void onReceive(BytesXMLMessage message) {
-	                	System.out.println("HERE");
-	                	System.out.println(message.dump());
-	                    /* this is where you will add a switch/case statement to call various methods to
-	                     *  a) add n more random cars
-	                     *  b) add a user car
-	                     *  c) fault a user car
-	                     *  etc.
-	                     *      geo/bus/vehNum/lat/lon/routeNum/status
-	                     *      geo/taxi/vehNum/lat/lon/status
-	                     *      geo/train/vehNum/lat/lon/routeNum
-	                			comms/bus/1234
-	                			comms/route/012
-	                			comms/broadcast
-	                			comms/dispatch
-							    ctrl/bus/vehNum/stop
-							    ctrl/bus/vehNum/start
-							    ctrl/bus/vehNum/flat
-							    ctrl/bus/vehNum/crash
-							    ctrl/bus/vehNum/fix
-	                     */
-	                	String topic = message.getDestination().getName();
-	                	
-	                	System.out.println(topic);
-	                	
-	                	if (topic.startsWith("bus_trak/comms/")) {/*
-	                		if (topic.equals(TOPIC_DISPATCH.getName())) {  // this one is meant for me, command and control
-	                			// or maybe the map display... I dunno
-	                			
-	                		} else if (message.getDestination().equals(TOPIC_BROADCAST)) {
-	                			// need to tell every bus that something has happened
-	                			for (Bus bus : busTracker.buses) {
-	                				bus.receiveMessage(message);
-	                			}
-	                		} else if (topic.startsWith("bus_trak/comms/route/")) {
-	                			int routeNum = Integer.parseInt(topic.split("\\/")[2]);
-	                			for (Bus bus : busTracker.busByRoute.get(routeNum)) {
-	                				bus.receiveMessage(message);
-	                			}
-	                		} else if (topic.startsWith("bus_trak/comms/bus/")) {
-	                			int busNum = Integer.parseInt(topic.split("\\/")[2]);
-	                			busTracker.getBus(busNum).receiveMessage(message);
-	                		} else {
-	                			// have no idea what other kind of comms message I'd receive
-	                		}
-	                	*/	
-	                	} else if (topic.startsWith("bus_trak/ctrl/")) {
-                			int busNum = Integer.parseInt(topic.split("\\/")[3]);
-                			String action = topic.split("\\/")[4];
-                			if (action.equals("start")) {
-                				busTracker.getBus(busNum).startBus();
-                			} else if (action.equals("stop")) {
-                				busTracker.getBus(busNum).stopBus();
-                			} 
-	                	} else {
-	                		System.err.println("Received unexpected bus topic: "+topic);
+	                	try {
+		                	System.out.println(message.dump());
+		                    /* this is where you will add a switch/case statement to call various methods to
+		                     *  a) add n more random cars
+		                     *  b) add a user car
+		                     *  c) fault a user car
+		                     *  etc.
+		                     *      geo/bus/vehNum/lat/lon/routeNum/status
+		                     *      geo/taxi/vehNum/lat/lon/status
+		                     *      geo/train/vehNum/lat/lon/routeNum
+		                			comms/bus/1234
+		                			comms/route/012
+		                			comms/broadcast
+		                			comms/dispatch
+								    ctrl/bus/vehNum/stop
+								    ctrl/bus/vehNum/start
+								    ctrl/bus/vehNum/flat
+								    ctrl/bus/vehNum/crash
+								    ctrl/bus/vehNum/fix
+		                     */
+		                	String topic = message.getDestination().getName();
+		                	if (topic.startsWith("bus_trak/comms/")) {/*
+		                		if (topic.equals(TOPIC_DISPATCH.getName())) {  // this one is meant for me, command and control
+		                			// or maybe the map display... I dunno
+		                			
+		                		} else if (message.getDestination().equals(TOPIC_BROADCAST)) {
+		                			// need to tell every bus that something has happened
+		                			for (Bus bus : busTracker.buses) {
+		                				bus.receiveMessage(message);
+		                			}
+		                		} else if (topic.startsWith("bus_trak/comms/route/")) {
+		                			int routeNum = Integer.parseInt(topic.split("\\/")[2]);
+		                			for (Bus bus : busTracker.busByRoute.get(routeNum)) {
+		                				bus.receiveMessage(message);
+		                			}
+		                		} else if (topic.startsWith("bus_trak/comms/bus/")) {
+		                			int busNum = Integer.parseInt(topic.split("\\/")[2]);
+		                			busTracker.getBus(busNum).receiveMessage(message);
+		                		} else {
+		                			// have no idea what other kind of comms message I'd receive
+		                		}
+		                	*/	
+		                	} else if (topic.startsWith("bus_trak/ctrl/")) {
+	                			int busNum = Integer.parseInt(topic.split("\\/")[3]);
+	                			String action = topic.split("\\/")[4];
+	                			if (action.equals("start")) {
+	                				busTracker.getBus(busNum).startBus();
+	                			} else if (action.equals("stop")) {
+	                				busTracker.getBus(busNum).stopBus();
+	                			} 
+		                	} else {
+		                		System.err.println("Received unexpected bus topic: "+topic);
+		                	}
+	                	} catch (RuntimeException e) {  // just in case we get some bad message
+	                		e.printStackTrace();
 	                	}
 	                }
 	                

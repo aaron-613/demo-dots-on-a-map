@@ -240,8 +240,10 @@ public class Bus implements Runnable {
         job.put("longitude",getPosition().y);
         if (getPracticalStatus().equals("FAULT")) {
             job.put("status",getPracticalStatus()+": "+status);
+            job.put("rpm",  0);
         } else {
             job.put("status",getPracticalStatus());
+            job.put("rpm", calcSpeed() > 0 ? (int)(1000 + Math.random()*1500) : (int)(800 + Math.random()*100));
         }
         job.put("speed",calcSpeed() > 60 ? 60 : calcSpeed());
         job.put("heading", VehicleUtils.calcHeadingForRoute(routeNum, positionIndex));
