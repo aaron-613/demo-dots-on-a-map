@@ -109,6 +109,12 @@ public class Bus implements Runnable {
                     }
                     if (getPositionIndex() % 10 == 0) {  // bus stop every 10 ticks
                         busStopCount = 4;  // stop for 4 ticks
+                        TextMessage msg = JCSMPFactory.onlyInstance().createMessage(TextMessage.class);
+                        StringBuilder sb = new StringBuilder("bus_trak/door/v1/");
+                        sb.append(String.format("%03d", routeNum+1)).append(extraRouteChar).append('/');
+                        sb.append(String.format("%05d", busNum)).append('/');
+                        sb.append("open");
+                        GpsGenerator.onlyInstance().sendMessage(msg, JCSMPFactory.onlyInstance().createTopic(sb.toString()));
                     }
                 } else {  // at a bus stop
                     busStopCount--;
@@ -116,6 +122,14 @@ public class Bus implements Runnable {
                     passgenerCapacity += ((Math.random()*0.3)-0.15);  // +/- 0.15 for change in passengers
                     passgenerCapacity = Math.max(0,passgenerCapacity);
                     passgenerCapacity = Math.min(1,passgenerCapacity);
+                    if (busStopCount == 0) {  // starting up again
+                        TextMessage msg = JCSMPFactory.onlyInstance().createMessage(TextMessage.class);
+                        StringBuilder sb = new StringBuilder("bus_trak/door/v1/");
+                        sb.append(String.format("%03d", routeNum+1)).append(extraRouteChar).append('/');
+                        sb.append(String.format("%05d", busNum)).append('/');
+                        sb.append("close");
+                        GpsGenerator.onlyInstance().sendMessage(msg, JCSMPFactory.onlyInstance().createTopic(sb.toString()));
+                    }
                 }
             }
         }
@@ -125,7 +139,7 @@ public class Bus implements Runnable {
         if (Math.random() < 0.0001) {
             fault();
         }
-        GpsGenerator.onlyInstance().sendMessage(buildMessage(),genTopic());
+        GpsGenerator.onlyInstance().sendMessage(buildMessage(), genTopic());
         //BroadcastQueue.INSTANCE.queue.add.onlyInstance().sendMessage(buildMessage("speed="+speed+"status="+status),JCSMPFactory.onlyInstance().createTopic(genTopicString()));
     }
 
