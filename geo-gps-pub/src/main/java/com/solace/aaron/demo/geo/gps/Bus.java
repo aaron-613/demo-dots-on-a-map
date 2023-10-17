@@ -206,6 +206,14 @@ public class Bus implements Runnable {
         msg.setText(genPayload());
         return msg;
     }
+    
+    // expects heading to be 0-359
+    // returns -45 == 00, 0N = 02, 180S = 22
+    // so 0* matches anything heading "northish", between NW-NE
+    String generateBase4Heading(int heading) {
+    	// we want a sub 0* to match anything "north", so need to rotate forwards by 45deg
+    	return Integer.toString((int)Math.floor((VehicleUtils.calcHeadingForRoute(routeNum, positionIndex) + 45)/22.5), 4);
+    }
 
     Destination genTopic() {
         // geo/bus/1234/001.238212/103.128345/023/OK
@@ -216,7 +224,8 @@ public class Bus implements Runnable {
         sb.append(String.format("%05d", busNum)).append('/');
         sb.append(String.format("%09.5f", getPosition().x)).append('/');
         sb.append(String.format("%010.5f", getPosition().y)).append('/');
-        String base4Heading = Integer.toString((int)Math.floor(VehicleUtils.calcHeadingForRoute(routeNum, positionIndex)/22.5),4);
+//        String base4Heading = Integer.toString((int)Math.floor(VehicleUtils.calcHeadingForRoute(routeNum, positionIndex)/22.5),4);  // original, 00 as north
+        String base4Heading = Integer.toString((int)Math.floor(VehicleUtils.calcHeadingForRoute(routeNum, positionIndex)/22.5),4);  // rotated, so 0* matches "north" (NW to NE)
         if (base4Heading.length() < 2) sb.append('0');
         sb.append(base4Heading).append('/');
 //        sb.append(String.format("%s", Integer.toString(VehicleUtils.calcHeadingForRoute(routeNum, positionIndex)/10))).append('/');
