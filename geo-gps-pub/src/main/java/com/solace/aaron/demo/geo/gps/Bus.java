@@ -212,7 +212,9 @@ public class Bus implements Runnable {
     // so 0* matches anything heading "northish", between NW-NE
     static String generateBase4Heading(int heading) {
     	// we want a sub 0* to match anything "north", so need to rotate forwards by 45deg
-    	return Integer.toString((int)Math.floor((heading + 45)/22.5), 4);
+    	heading += 45;
+    	if (heading >= 360) heading -= 360;
+    	return Integer.toString((int)Math.floor(heading / 22.5), 4);
     }
 
     Destination genTopic() {
